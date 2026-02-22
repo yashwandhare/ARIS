@@ -78,26 +78,34 @@ Open `http://localhost:5173` for the Admin Console · `http://localhost:5173/app
 ## Screenshots
 
 ### Enterprise Intake Portal
-| Step 1 | Step 2 |
-| :---: | :---: |
-| ![Intake Portal 1](images/application_portal.png) | ![Intake Portal 2](images/application_portal2.png) |
+| Step 1 |
+| :---: |
+| ![Intake Portal](images/APPLY_PORTAL1.png) |
 
 ### Admin Command Center & Analytics
 | HR Overview | Recruitment Analytics |
 | :---: | :---: |
-| ![Dashboard](images/admin_dashboard.png) | ![Analytics](images/admin_dashboard_analytics.png) |
+| ![Dashboard](images/ADMIN_DASHBOARD.png) | ![Analytics](images/ADMIN_DASHBOARD_ANALYTICS.png) |
+
+| Intern Performance Dashboard |
+| :---: |
+| ![Intern Performance Dashboard](images/ADMIN_DASHBOARD_INTERN_PERFOMANCE.png) |
 
 ### Agentic Verification & Audit
 | Deep Dive Verification | Trust Audit Interface |
 | :---: | :---: |
-| ![Verification Audit](images/candidates_profile.png) | ![Role Alignment](images/intern_analysis.png) |
+| ![Verification Audit](images/CANDIDATE_PROFILE.png) | ![Role Alignment](images/CANDIDATE_PROFILE_ANALYSIS.png) |
+
+| Automated Agentic Audit | Government Verification |
+| :---: | :---: |
+| ![Candidate Audit](images/CANDIDATE_AUDIT.png) | ![Candidate Audit 2](images/CANDIDATE_AUDIT2.png) |
 
 ### Intern Management & Performance
 | Intern View | Performance Monitoring |
 | :---: | :---: |
-| ![Intern Dashboard](images/intern_dashboard.png) | ![Performance](images/intern_perfomance.png) |
+| ![Intern Dashboard](images/INTERN_DASHBOARD.png) | ![Performance](images/INTERN_DASHBOARD_PERFOMANCE.png) |
 
 ### AI Training Plans
 | Plan Generation | Interactive Refinement |
 | :---: | :---: |
-| ![Training Plan](images/training_plan_gen.png) | ![Refinement](images/training_plan_2.png) |
+| ![Training Plan](images/CANDIDATE_TRAIN_PLAN.png) | ![Refinement](images/CANDIDATE_TRAIN_PLAN2.png) |

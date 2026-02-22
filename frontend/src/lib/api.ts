@@ -1,4 +1,4 @@
-let envUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+let envUrl = import.meta.env.VITE_API_URL || "https://aris-backend-f6qm.onrender.com";
 if (envUrl && !envUrl.startsWith("http")) {
   envUrl = "https://" + envUrl;
 }

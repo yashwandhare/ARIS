@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+gunicorn
+sqlalchemy
+pydantic
+python-dotenv
+httpx
+pdfplumber
+python-multipart
+psycopg2-binary
+crewai
+crewai-tools

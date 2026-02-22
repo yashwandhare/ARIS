@@ -1,0 +1,122 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 33% 96%;
+    --foreground: 0 0% 24%;
+    --card: 40 33% 96%;
+    --card-foreground: 0 0% 24%;
+    --popover: 40 33% 96%;
+    --popover-foreground: 0 0% 24%;
+    --primary: 199 70% 72%;
+    --primary-foreground: 0 0% 24%;
+    --secondary: 70 100% 69%;
+    --secondary-foreground: 0 0% 24%;
+    --muted: 30 20% 92%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 25 95% 55%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 25 95% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 30 15% 88%;
+    --input: 30 15% 88%;
+    --ring: 199 70% 72%;
+    --radius: 0.5rem;
+  }
+
+  * {
+    @apply border-charcoal-200;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-cream text-charcoal-800 font-sans antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+  }
+}
+
+@layer utilities {
+  .font-serif-heading {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+  
+  .flat-card {
+    @apply bg-cream-100 border border-charcoal-200 rounded-xl;
+  }
+  
+  .flat-card-hover {
+    @apply flat-card transition-colors duration-200 hover:border-charcoal-300;
+  }
+  
+  .flat-input {
+    @apply bg-cream-50 border border-charcoal-200 rounded-lg;
+  }
+  
+  .flat-dropdown {
+    @apply bg-cream-50 border border-charcoal-200 rounded-xl;
+  }
+  
+  .glass-blur {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background-color: rgba(250, 248, 245, 0.85);
+  }
+  
+  .sidebar-blur {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    background-color: rgba(250, 248, 245, 0.9);
+  }
+  
+  .header-blur {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    background-color: rgba(250, 248, 245, 0.9);
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-charcoal-300 rounded-full;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-charcoal-400;
+  }
+  
+  .badge-high {
+    @apply bg-lime/30 text-charcoal-800 border border-lime/50 rounded-full px-3 py-0.5 text-sm font-medium;
+  }
+  
+  .badge-medium {
+    @apply bg-sky/30 text-charcoal-800 border border-sky/50 rounded-full px-3 py-0.5 text-sm font-medium;
+  }
+  
+  .badge-low {
+    @apply bg-orange/20 text-charcoal-800 border border-orange/50 rounded-full px-3 py-0.5 text-sm font-medium;
+  }
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  @apply outline-none ring-2 ring-sky/50 ring-offset-2 ring-offset-cream;
+}

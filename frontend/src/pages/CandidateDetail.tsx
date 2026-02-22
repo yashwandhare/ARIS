@@ -21,7 +21,7 @@ import { Candidate } from '@/types';
 import { getConfidenceColor } from '@/lib/utils';
 import { getLanguageColor } from '@/lib/constants';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { getApplicationById, getApplications, generatePlan as apiGeneratePlan, modifyPlan as apiModifyPlan } from '@/lib/api';
+import { getApplicationById, getApplications, generatePlan as apiGeneratePlan, modifyPlan as apiModifyPlan, verifyApplication } from '@/lib/api';
 import { mapAppToCandidate } from '@/pages/Dashboard';
 
 export function CandidateDetail() {
@@ -34,6 +34,9 @@ export function CandidateDetail() {
   const [generatingPlan, setGeneratingPlan] = useState(false);
   const [trainingPlan, setTrainingPlan] = useState<any>(null);
   const [backgroundReport, setBackgroundReport] = useState<any>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [trustScore, setTrustScore] = useState<number | null>(null);
+  const [verificationReport, setVerificationReport] = useState<any>(null);
   const [allCandidates, setAllCandidates] = useState<Candidate[]>([]);
   const [chatMessages, setChatMessages] = useState<{ role: 'admin' | 'system'; text: string }[]>([]);
   const [chatInput, setChatInput] = useState('');
@@ -121,6 +124,34 @@ export function CandidateDetail() {
     }
   };
 
+  const handleVerify = async () => {
+    if (!candidate?.id) return;
+    setVerifying(true);
+
+    try {
+      const response = await verifyApplication(candidate.id);
+
+      setTrustScore(response.trust_score);
+
+      const report = response.verification_report_json
+        ? JSON.parse(response.verification_report_json)
+        : null;
+      setVerificationReport(report);
+
+      // Also grab any background report the scoring system might have set
+      const bgReport = response.background_report_json
+        ? JSON.parse(response.background_report_json)
+        : null;
+      if (bgReport) setBackgroundReport(bgReport);
+
+    } catch (e) {
+      console.error('Verification failed', e);
+      alert('Failed to run agentic audit: ' + (e as Error).message);
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   // Load specific candidate
   useEffect(() => {
     let isMounted = true;
@@ -200,6 +231,13 @@ export function CandidateDetail() {
         if (!isMounted) return;
         setCandidate(mapped);
         setBackgroundReport(backgroundReport);
+
+        if (app.trust_score) setTrustScore(app.trust_score);
+        try {
+          if (app.verification_report_json) {
+            setVerificationReport(JSON.parse(app.verification_report_json));
+          }
+        } catch { }
 
         if (existingPlan) {
           setTrainingPlan(existingPlan);
@@ -379,23 +417,141 @@ export function CandidateDetail() {
                       <Badge variant={candidate.status === 'accepted' ? 'secondary' : candidate.status === 'rejected' ? 'destructive' : 'outline'}>
                         {candidate.status.replace('_', ' ')}
                       </Badge>
+                      {trustScore !== null && (
+                        <Badge className={`${trustScore >= 70 ? 'bg-lime/20 text-charcoal-800 border-lime/30' : trustScore >= 45 ? 'bg-orange/20 text-charcoal-800 border-orange/30' : 'bg-red-100 text-red-800 border-red-200'}`}>
+                          Trust: {trustScore}/100
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>
 
-                {trainingPlan && (
+                <div className="flex items-center gap-3">
                   <Button
-                    variant="outline"
-                    onClick={() => setShowProfile(!showProfile)}
-                    className="gap-2"
+                    onClick={handleVerify}
+                    disabled={verifying}
+                    className="gap-2 bg-charcoal-800 hover:bg-charcoal-700 text-cream"
                   >
-                    {showProfile ? 'Hide Profile' : 'Show Profile'}
-                    {showProfile ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    {verifying ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-2 border-cream border-t-transparent" />
+                        Agents Auditing...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4" />
+                        Run Agentic Audit
+                      </>
+                    )}
                   </Button>
-                )}
+
+                  {trainingPlan && (
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowProfile(!showProfile)}
+                      className="gap-2"
+                    >
+                      {showProfile ? 'Hide Profile' : 'Show Profile'}
+                      {showProfile ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
+
+          {verifying && (
+            <Card className="flat-card border-orange/30 bg-orange/5">
+              <CardContent className="p-8 text-center space-y-4">
+                <div className="flex justify-center mb-4">
+                  <div className="relative w-16 h-16">
+                    <div className="absolute inset-0 bg-orange/20 rounded-full animate-ping"></div>
+                    <div className="absolute inset-2 bg-orange rounded-full flex items-center justify-center">
+                      <Sparkles className="h-6 w-6 text-white animate-pulse" />
+                    </div>
+                  </div>
+                </div>
+                <h3 className="text-xl font-serif font-bold text-charcoal-800">CrewAI Agents Running</h3>
+                <div className="space-y-2 max-w-md mx-auto text-sm text-charcoal-600">
+                  <p className="animate-pulse">🔍 GitHub Analyst verifying commit history and code quality...</p>
+                  <p className="animate-pulse" style={{ animationDelay: '0.5s' }}>⚖️ Fraud Detector cross-referencing resume claims with code evidence...</p>
+                  <p className="animate-pulse" style={{ animationDelay: '1s' }}>📑 Compliance Manager calculating final Truth & Trust Score...</p>
+                  <p className="animate-pulse" style={{ animationDelay: '1.5s' }}>🎓 Onboarding Planner generating personalized curriculum...</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {!verifying && verificationReport && (
+            <Card className={`flat-card border-2 ${trustScore !== null && trustScore >= 70 ? 'border-lime/30' : trustScore !== null && trustScore >= 45 ? 'border-orange/30' : 'border-red-200'}`}>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Sparkles className={`h-5 w-5 ${trustScore !== null && trustScore >= 70 ? 'text-lime-600' : trustScore !== null && trustScore >= 45 ? 'text-orange' : 'text-red-500'}`} />
+                    Agentic Verification Report
+                  </CardTitle>
+                  <Badge variant="outline" className="font-mono text-xs text-charcoal-500">
+                    Generated by AI Agents
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className={`p-6 rounded-xl border flex flex-col items-center justify-center text-center ${trustScore !== null && trustScore >= 70 ? 'bg-lime/10 border-lime/20' : trustScore !== null && trustScore >= 45 ? 'bg-orange/10 border-orange/20' : 'bg-red-50 border-red-100'}`}>
+                    <p className="text-sm font-semibold uppercase tracking-wider mb-2 opacity-80">True Trust Score</p>
+                    <div className="text-6xl font-serif font-bold">{trustScore}</div>
+                    <p className="text-sm mt-3 opacity-90 font-medium">
+                      Risk Level: <span className="uppercase">{verificationReport.risk_level?.replace('_', ' ') || 'UNKNOWN'}</span>
+                    </p>
+                  </div>
+
+                  <div className="p-6 bg-cream-200 rounded-xl border border-charcoal-100 flex flex-col justify-center">
+                    <p className="text-sm font-semibold text-charcoal-700 mb-2">Compliance Summary</p>
+                    <p className="text-sm text-charcoal-600 leading-relaxed">
+                      {verificationReport.verification_summary || 'No summary provided.'}
+                    </p>
+                    {verificationReport.recommendation && (
+                      <div className="mt-4 pt-4 border-t border-charcoal-200/50 flex justify-between items-center text-sm">
+                        <span className="font-semibold text-charcoal-700">Recommendation:</span>
+                        <Badge className="uppercase tracking-wide">{verificationReport.recommendation.replace('_', ' ')}</Badge>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {verificationReport.red_flags?.length > 0 && (
+                  <div>
+                    <p className="text-sm font-bold text-red-600 mb-3 flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                      Crucial Red Flags Discovered
+                    </p>
+                    <div className="space-y-2">
+                      {verificationReport.red_flags.map((flag: string, i: number) => (
+                        <div key={i} className="p-3 bg-red-50 text-red-800 text-sm rounded-lg border border-red-100">
+                          {flag}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {verificationReport.key_findings?.length > 0 && (
+                  <div>
+                    <p className="text-sm font-bold text-charcoal-700 mb-3">Key Evidence Findings</p>
+                    <ul className="space-y-2">
+                      {verificationReport.key_findings.map((finding: string, i: number) => (
+                        <li key={i} className="text-sm text-charcoal-600 flex items-start gap-2 bg-cream/50 p-2 rounded">
+                          <span className="text-sky mt-1">▸</span>{finding}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+              </CardContent>
+            </Card>
+          )}
 
           {showProfile && (
             <>

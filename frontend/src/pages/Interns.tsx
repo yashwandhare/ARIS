@@ -49,7 +49,7 @@ export function Interns() {
     <div className="p-8 space-y-8 custom-scrollbar overflow-y-auto h-full bg-cream pb-16">
       <div className="space-y-2">
         <h1 className="text-4xl font-serif font-bold text-charcoal-800">
-          Interns & Training
+          Talent Management
         </h1>
         <p className="text-base text-charcoal-500">
           Active interns performance and training progress.
@@ -155,7 +155,7 @@ export function Interns() {
         <CardContent>
           {acceptedInterns.length === 0 ? (
             <div className="text-center py-8 text-charcoal-500">
-              No accepted interns yet. Accept candidates from the Review Room to see them here.
+              No accepted interns yet. Accept candidates from the Verification Center to see them here.
             </div>
           ) : (
             <div className="space-y-4">

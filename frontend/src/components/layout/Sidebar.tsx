@@ -34,7 +34,7 @@ export function Sidebar() {
         {!isCollapsed && (
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-charcoal-800 rounded-lg flex items-center justify-center">
-              <span className="text-cream font-bold text-xl font-serif">H</span>
+              <span className="text-cream font-bold text-xl font-serif">A</span>
             </div>
             <div>
               <h1 className="text-lg font-serif font-semibold text-charcoal-800">ARIS</h1>
@@ -93,7 +93,7 @@ export function Sidebar() {
             )} />
             {!isCollapsed && (
               <div>
-                <p className="text-xs font-medium text-charcoal-700">Backend: Mock</p>
+                <p className="text-xs font-medium text-charcoal-700">Backend: Live</p>
                 <p className="text-xs text-charcoal-500">System Active</p>
               </div>
             )}

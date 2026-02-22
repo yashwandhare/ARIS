@@ -123,7 +123,7 @@ export function ReviewRoom() {
     <div className="p-8 space-y-8 custom-scrollbar overflow-y-auto h-full bg-cream pb-16">
       <div className="space-y-2">
         <h1 className="text-4xl font-serif font-bold text-charcoal-800 uppercase">
-          Review Room
+          Verification Center
         </h1>
         <p className="text-base text-charcoal-500">
           Candidates awaiting your review decision. {reviewCandidates.length} total.

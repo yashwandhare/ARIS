@@ -734,7 +734,7 @@ export const mockStats: DashboardStats = {
 export const mockAdminUser = {
   id: "admin-1",
   name: "Ravi Kumar",
-  email: "ravi.kumar@iats.com",
+  email: "ravi.kumar@aris.ai",
   role: "admin" as const,
   avatar: undefined
 };

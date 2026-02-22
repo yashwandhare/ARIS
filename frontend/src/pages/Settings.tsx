@@ -12,7 +12,7 @@ export function Settings() {
           Settings
         </h1>
         <p className="text-base text-charcoal-500">
-          Configure your IATS admin panel preferences.
+          Configure your ARIS admin panel preferences.
         </p>
       </div>
 
@@ -30,17 +30,17 @@ export function Settings() {
           <div>
             <label className="text-sm font-medium mb-2 block text-charcoal-700">Backend Mode</label>
             <div className="flex gap-2">
-              <Badge variant="default">Mock Data (Active)</Badge>
-              <Badge variant="outline">Live API</Badge>
+              <Badge variant="default">Live API (Active)</Badge>
+              <Badge variant="outline">PostgreSQL Connected</Badge>
             </div>
             <p className="text-xs text-charcoal-500 mt-2">
-              Currently using mock data. Connect to backend API for production use.
+              ARIS is connected to the live backend. All verifications are processed in real-time.
             </p>
           </div>
-          
+
           <div>
             <label className="text-sm font-medium mb-2 block text-charcoal-700">API Endpoint</label>
-            <Input placeholder="https://api.iats.com/v1" disabled />
+            <Input placeholder="https://api.aris.ai/v1" disabled />
           </div>
 
           <Button variant="outline" className="gap-2">

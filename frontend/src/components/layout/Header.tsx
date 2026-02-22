@@ -22,7 +22,7 @@ export function Header() {
       <div className="flex items-center gap-4">
         <Badge variant="outline" className="gap-2">
           <div className="w-2 h-2 rounded-full bg-lime" />
-          <span>Mock Mode</span>
+          <span>Live Mode</span>
         </Badge>
       </div>
 

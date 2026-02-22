@@ -216,10 +216,10 @@ export function Dashboard() {
     <div className="p-8 space-y-8 custom-scrollbar overflow-y-auto h-full bg-cream pb-16">
       <div className="space-y-2">
         <h1 className="text-4xl font-serif font-bold text-charcoal-800">
-          Welcome back, Admin
+          ARIS Command Center
         </h1>
         <p className="text-base text-charcoal-500">
-          Here's what's happening with your intern applications today.
+          Review your candidate pipeline and verification queue.
         </p>
       </div>
 
@@ -227,7 +227,7 @@ export function Dashboard() {
 
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-serif font-semibold text-charcoal-800">Applications</h2>
+          <h2 className="text-2xl font-serif font-semibold text-charcoal-800">Candidate Pipeline</h2>
           <div className="text-sm text-charcoal-500">
             Showing {displayedCandidates.length} of {filteredCandidates.length} candidates
           </div>

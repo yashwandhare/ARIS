@@ -31,7 +31,7 @@ export function CertificatePage() {
               Certificate Not Yet Available
             </h2>
             <p className="text-charcoal-500 max-w-md mx-auto mb-6">
-              Complete all program requirements to unlock your internship completion certificate.
+              Complete all program requirements to unlock your candidateship completion certificate.
             </p>
             <div className="inline-flex items-center gap-4 px-6 py-4 rounded-lg bg-cream-200">
               <div className="text-left">
@@ -61,7 +61,7 @@ export function CertificatePage() {
           Certificate
         </h1>
         <p className="text-base text-charcoal-500">
-          Your internship completion certificate.
+          Your placement completion certificate.
         </p>
       </div>
 
@@ -148,7 +148,7 @@ export function CertificatePage() {
                 Congratulations, {profile.name.split(' ')[0]}!
               </h3>
               <p className="text-sm text-charcoal-600">
-                You have successfully completed the internship program. This certificate 
+                You have successfully completed the hiring program. This certificate 
                 validates your skills and dedication. Add it to your LinkedIn profile or 
                 portfolio to showcase your achievement.
               </p>

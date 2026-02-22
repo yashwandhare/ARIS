@@ -1,4 +1,8 @@
-const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+let envUrl = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+if (envUrl && !envUrl.startsWith("http")) {
+  envUrl = "https://" + envUrl;
+}
+const BASE_URL = envUrl;
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {

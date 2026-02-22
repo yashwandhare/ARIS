@@ -26,12 +26,23 @@ from app.agents.tools import (
 
 
 def _get_llm_instance():
-    from langchain_groq import ChatGroq
-    _model_name = os.getenv("LLM_MODEL", "llama3-70b-8192")
-    if _model_name.startswith("groq/"):
-         _model_name = _model_name[5:]
-    # Initialize only when needed so that os.environ["GROQ_API_KEY"] is set
-    return ChatGroq(model=_model_name)
+    """Return a crewai.LLM configured for Groq.
+
+    CrewAI v1.x has its own LLM class that wraps LiteLLM correctly.
+    Using crewai.LLM with the groq/ prefix and explicit api_key is the
+    correct way to route calls to Groq without any OpenAI dependency.
+    """
+    from crewai import LLM
+
+    _model_name = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
+    if not _model_name.startswith("groq/"):
+        _model_name = f"groq/{_model_name}"
+
+    api_key = os.getenv("GROQ_API_KEY") or os.getenv("LLM_API_KEY")
+    if api_key and not os.environ.get("GROQ_API_KEY"):
+        os.environ["GROQ_API_KEY"] = api_key
+
+    return LLM(model=_model_name, api_key=api_key)
 
 
 
@@ -137,7 +148,7 @@ def _build_tasks(
         description=(
             f"Analyze the GitHub profile for candidate '{candidate_name}' "
             f"at URL: {github_url}\n\n"
-            f"Use the 'Fetch GitHub Profile' tool with the URL.\n"
+            f"Use the 'fetch_github_profile' tool with the URL.\n\n"
             f"Then produce a structured report covering:\n"
             f"1. Total repositories and stars\n"
             f"2. Top programming languages with percentages\n"
@@ -160,7 +171,7 @@ def _build_tasks(
             f"{skills_json}\n\n"
             f"Using the GitHub analysis from the previous task, cross-reference "
             f"each claimed skill against the real evidence.\n\n"
-            f"Use the 'Cross Reference Claims' tool with the resume skills and "
+            f"Use the 'cross_reference_claims' tool with the resume skills and "
             f"GitHub languages from the previous analysis.\n\n"
             f"For each skill, determine: verified, partial, contradicted, or unverifiable.\n"
             f"Flag any RED FLAGS where claims significantly contradict evidence."
@@ -178,7 +189,7 @@ def _build_tasks(
         description=(
             f"Based on the GitHub analysis and fraud detection results for "
             f"'{candidate_name}' (applied for: {role_applied}):\n\n"
-            f"1. Use the 'Compute Candidate Scores' tool with the GitHub metrics, "
+            f"1. Use the 'compute_candidate_scores' tool with the GitHub metrics, "
             f"role '{role_applied}', and resume keywords {skills_json}\n"
             f"2. Determine the final Trust Score (0-100)\n"
             f"3. Assign risk level: 'clear' (score >= 70), 'review_required' "

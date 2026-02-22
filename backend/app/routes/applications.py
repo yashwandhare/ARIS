@@ -213,9 +213,11 @@ async def create_application(
     from app.services.llm_service import _get_api_key
     api_key = _get_api_key()
     if api_key:
-        # CrewAI via Groq requires GROQ_API_KEY in the environment
         import os
         os.environ["GROQ_API_KEY"] = api_key
+        os.environ["CREWAI_TELEMETRY_OPTOUT"] = "true"
+        if not os.environ.get("OPENAI_API_KEY"):
+            os.environ["OPENAI_API_KEY"] = "sk-placeholder-not-used"
         try:
             from app.agents.verification_crew import run_verification
 
@@ -266,6 +268,21 @@ def get_application(application_id: int, db: Session = Depends(get_db)):
     if not db_obj:
         raise HTTPException(status_code=404, detail="Application not found")
     return db_obj
+
+
+@router.get("/{application_id}/government-verification")
+def get_government_verification(application_id: int, db: Session = Depends(get_db)):
+    """Return mock DigiLocker + Academic Bank of Credits data for a candidate.
+
+    This endpoint is independent of the full CrewAI pipeline.
+    Replace the mock service calls with real API calls once credentials are approved.
+    """
+    db_obj = db.query(Application).filter(Application.id == application_id).first()
+    if not db_obj:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    from app.services.digilocker_service import run_government_verification
+    return run_government_verification(db_obj.id, db_obj.full_name)
 
 
 class GeneratePlanRequest(BaseModel):
@@ -429,19 +446,29 @@ def verify_candidate(application_id: int, db: Session = Depends(get_db)):
         except (json.JSONDecodeError, TypeError):
             pass
 
+    import os
+    from app.services.llm_service import _get_api_key
+
+    api_key = _get_api_key()
+    if api_key:
+        os.environ["GROQ_API_KEY"] = api_key
+    # Disable Telemetry to prevent threading signal crash
+    os.environ["CREWAI_TELEMETRY_OPTOUT"] = "true"
+    # CrewAI requires OPENAI_API_KEY to exist for internal init even when using Groq.
+    # Set a placeholder — actual LLM calls use ChatGroq with explicit groq_api_key.
+    if not os.environ.get("OPENAI_API_KEY"):
+        os.environ["OPENAI_API_KEY"] = "sk-placeholder-not-used"
+
     try:
-        from app.services.llm_service import _get_api_key
-        api_key = _get_api_key()
-        if api_key:
-            import os
-            os.environ["GROQ_API_KEY"] = api_key
-            # Bypass CrewAI/LiteLLM validation
-            os.environ["OPENAI_API_KEY"] = "dummy_for_crewai"
-            # Disable Telemetry to prevent threading signal crash
-            os.environ["CREWAI_TELEMETRY_OPTOUT"] = "true"
-
         from app.agents.verification_crew import run_verification
+    except ImportError as ie:
+        print(f"CrewAI import error: {ie}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"CrewAI not installed. Install crewai and crewai-tools. ({ie})",
+        )
 
+    try:
         result = run_verification(
             github_url=db_obj.github_url,
             role_applied=db_obj.role_applied,
@@ -449,11 +476,19 @@ def verify_candidate(application_id: int, db: Session = Depends(get_db)):
             resume_skills=resume_skills,
         )
 
+        # Government verification (DigiLocker + ABC) — mock until API approved
+        try:
+            from app.services.digilocker_service import run_government_verification
+            gov_verify = run_government_verification(db_obj.id, db_obj.full_name)
+            verification_report = result.get("verification_report", {})
+            verification_report["government_verification"] = gov_verify
+        except Exception as gv_err:
+            print(f"Gov verification error (non-fatal): {gv_err}")
+            verification_report = result.get("verification_report", {})
+
         # Save results
         db_obj.trust_score = result.get("trust_score", 0.0)
-        db_obj.verification_report_json = json.dumps(
-            result.get("verification_report", {})
-        )
+        db_obj.verification_report_json = json.dumps(verification_report)
 
         # Only overwrite training plan if crew produced one
         crew_plan = result.get("training_plan")
@@ -465,11 +500,6 @@ def verify_candidate(application_id: int, db: Session = Depends(get_db)):
         db.refresh(db_obj)
         return db_obj
 
-    except ImportError:
-        raise HTTPException(
-            status_code=503,
-            detail="CrewAI not installed. Install crewai and crewai-tools.",
-        )
     except Exception as exc:
         raise HTTPException(
             status_code=500,

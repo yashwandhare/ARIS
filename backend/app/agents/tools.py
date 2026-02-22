@@ -16,7 +16,7 @@ from app.services.github_service import fetch_github_metrics
 from app.services.scoring_service import compute_scores
 
 
-@tool("Fetch GitHub Profile")
+@tool("fetch_github_profile")
 def fetch_github_profile(github_url: str) -> str:
     """Fetch and analyze a candidate's public GitHub profile.
 
@@ -35,7 +35,7 @@ def fetch_github_profile(github_url: str) -> str:
         return json.dumps({"error": f"GitHub API error: {str(e)}", "status": "api_error"})
 
 
-@tool("Compute Candidate Scores")
+@tool("compute_candidate_scores")
 def compute_candidate_scores(
     github_metrics_json: str,
     role_applied: str,
@@ -73,7 +73,7 @@ def compute_candidate_scores(
     return json.dumps(result, indent=2)
 
 
-@tool("Cross Reference Claims")
+@tool("cross_reference_claims")
 def cross_reference_claims(
     resume_skills_json: str,
     github_languages_json: str,

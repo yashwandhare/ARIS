@@ -7,6 +7,7 @@ import { EducationSection } from './EducationSection';
 import { ExperienceSection } from './ExperienceSection';
 import { MotivationSection } from './MotivationSection';
 import { ResumeUpload } from './ResumeUpload';
+import { DigiLockerSection } from './DigiLockerSection';
 import { PreviewSection } from './PreviewSection';
 import { useApplicationForm } from '../hooks/useApplicationForm';
 
@@ -146,6 +147,8 @@ export function ApplicationForm({ selectedRole }: ApplicationFormProps) {
       <MotivationSection register={register} errors={errors} watch={watch} />
 
       <ResumeUpload setValue={setValue} errors={errors} watch={watch} />
+
+      <DigiLockerSection />
 
       <PreviewSection watch={watch} register={register} errors={errors} />
 

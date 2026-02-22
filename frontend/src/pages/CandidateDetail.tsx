@@ -21,7 +21,7 @@ import { Candidate } from '@/types';
 import { getConfidenceColor } from '@/lib/utils';
 import { getLanguageColor } from '@/lib/constants';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { getApplicationById, getApplications, generatePlan as apiGeneratePlan, modifyPlan as apiModifyPlan, verifyApplication } from '@/lib/api';
+import { getApplicationById, getApplications, generatePlan as apiGeneratePlan, modifyPlan as apiModifyPlan, verifyApplication, getGovernmentVerification } from '@/lib/api';
 import { mapAppToCandidate } from '@/pages/Dashboard';
 
 export function CandidateDetail() {
@@ -35,6 +35,8 @@ export function CandidateDetail() {
   const [trainingPlan, setTrainingPlan] = useState<any>(null);
   const [backgroundReport, setBackgroundReport] = useState<any>(null);
   const [verifying, setVerifying] = useState(false);
+  const [auditVisible, setAuditVisible] = useState(false);
+  const [showAudit, setShowAudit] = useState(true);
   const [trustScore, setTrustScore] = useState<number | null>(null);
   const [verificationReport, setVerificationReport] = useState<any>(null);
   const [allCandidates, setAllCandidates] = useState<Candidate[]>([]);
@@ -128,29 +130,46 @@ export function CandidateDetail() {
     if (!candidate?.id) return;
     setVerifying(true);
 
+    // Cached path: trust score already exists — show 2-second animation
+    // then fetch government verification data (DigiLocker + ABC) freshly.
+    if (trustScore !== null && verificationReport) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      try {
+        const govData = await getGovernmentVerification(candidate.id);
+        setVerificationReport((prev: any) => ({ ...prev, government_verification: govData }));
+      } catch { /* non-fatal */ }
+      setAuditVisible(true);
+      setVerifying(false);
+      return;
+    }
+
     try {
       const response = await verifyApplication(candidate.id);
-
       setTrustScore(response.trust_score);
-
       const report = response.verification_report_json
         ? JSON.parse(response.verification_report_json)
         : null;
+      // If gov_verification wasn't merged server-side, fetch it now
+      if (report && !report.government_verification) {
+        try {
+          const govData = await getGovernmentVerification(candidate.id);
+          report.government_verification = govData;
+        } catch { /* non-fatal */ }
+      }
       setVerificationReport(report);
-
-      // Also grab any background report the scoring system might have set
       const bgReport = response.background_report_json
         ? JSON.parse(response.background_report_json)
         : null;
       if (bgReport) setBackgroundReport(bgReport);
-
     } catch (e) {
       console.error('Verification failed', e);
       alert('Failed to run agentic audit: ' + (e as Error).message);
     } finally {
+      setAuditVisible(true);
       setVerifying(false);
     }
   };
+
 
   // Load specific candidate
   useEffect(() => {
@@ -159,8 +178,16 @@ export function CandidateDetail() {
     async function loadCandidate() {
       if (!id) return;
 
+      // Reset all per-candidate state on every navigation
       setLoading(true);
       setTrainingPlan(null);
+      setTrustScore(null);
+      setVerificationReport(null);
+      setBackgroundReport(null);
+      setVerifying(false);
+      setAuditVisible(false);
+      setShowAudit(true);
+      setChatMessages([]);
 
       try {
         const app: any = await getApplicationById(id);
@@ -181,9 +208,6 @@ export function CandidateDetail() {
         })();
         const backgroundReport = (() => {
           try { return JSON.parse(app.background_report_json || '{}'); } catch { return {}; }
-        })();
-        const existingPlan = (() => {
-          try { return app.training_plan_json ? JSON.parse(app.training_plan_json) : null; } catch { return null; }
         })();
 
         let confidence = app.confidence_band;
@@ -232,6 +256,8 @@ export function CandidateDetail() {
         setCandidate(mapped);
         setBackgroundReport(backgroundReport);
 
+        // Silently preload audit data from DB so cached path works when user clicks Run Audit
+        // (auditVisible stays false — cards don't show until user clicks the button)
         if (app.trust_score) setTrustScore(app.trust_score);
         try {
           if (app.verification_report_json) {
@@ -239,16 +265,13 @@ export function CandidateDetail() {
           }
         } catch { }
 
-        if (existingPlan) {
-          setTrainingPlan(existingPlan);
-        } else {
-          try {
-            const cached = localStorage.getItem(`plan_${app.id}`);
-            if (cached) setTrainingPlan(JSON.parse(cached));
-          } catch { }
-        }
+        // Don't auto-show training plan — only restore if explicitly saved
+        try {
+          const savedPlan = localStorage.getItem(`plan_saved_${app.id}`);
+          if (savedPlan) setTrainingPlan(JSON.parse(savedPlan));
+        } catch { }
 
-        if (location.state?.generatePlan && !existingPlan) {
+        if (location.state?.generatePlan) {
           handleGeneratePlanBackend(app.id);
         }
       } catch (err) {
@@ -292,7 +315,13 @@ export function CandidateDetail() {
   };
 
   const handleSavePlan = () => {
-    alert('Training plan saved successfully!');
+    if (!candidate?.id || !trainingPlan) return;
+    try {
+      localStorage.setItem(`plan_saved_${candidate.id}`, JSON.stringify(trainingPlan));
+      alert('Training plan saved! It will be remembered when you return to this profile.');
+    } catch {
+      alert('Could not save plan to local storage.');
+    }
   };
 
   const handleDownloadPlan = () => {
@@ -482,7 +511,7 @@ export function CandidateDetail() {
             </Card>
           )}
 
-          {!verifying && verificationReport && (
+          {!verifying && auditVisible && verificationReport && (
             <Card className={`flat-card border-2 ${trustScore !== null && trustScore >= 70 ? 'border-lime/30' : trustScore !== null && trustScore >= 45 ? 'border-orange/30' : 'border-red-200'}`}>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
@@ -490,68 +519,203 @@ export function CandidateDetail() {
                     <Sparkles className={`h-5 w-5 ${trustScore !== null && trustScore >= 70 ? 'text-lime-600' : trustScore !== null && trustScore >= 45 ? 'text-orange' : 'text-red-500'}`} />
                     Agentic Verification Report
                   </CardTitle>
-                  <Badge variant="outline" className="font-mono text-xs text-charcoal-500">
-                    Generated by AI Agents
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="font-mono text-xs text-charcoal-500">Generated by AI Agents</Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowAudit(!showAudit)}
+                      className="h-7 w-7 p-0 rounded-full"
+                      title={showAudit ? 'Collapse audit' : 'Expand audit'}
+                    >
+                      {showAudit ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-6">
+              {showAudit && (
+                <CardContent className="space-y-6">
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className={`p-6 rounded-xl border flex flex-col items-center justify-center text-center ${trustScore !== null && trustScore >= 70 ? 'bg-lime/10 border-lime/20' : trustScore !== null && trustScore >= 45 ? 'bg-orange/10 border-orange/20' : 'bg-red-50 border-red-100'}`}>
-                    <p className="text-sm font-semibold uppercase tracking-wider mb-2 opacity-80">True Trust Score</p>
-                    <div className="text-6xl font-serif font-bold">{trustScore}</div>
-                    <p className="text-sm mt-3 opacity-90 font-medium">
-                      Risk Level: <span className="uppercase">{verificationReport.risk_level?.replace('_', ' ') || 'UNKNOWN'}</span>
-                    </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className={`p-6 rounded-xl border flex flex-col items-center justify-center text-center ${trustScore !== null && trustScore >= 70 ? 'bg-lime/10 border-lime/20' : trustScore !== null && trustScore >= 45 ? 'bg-orange/10 border-orange/20' : 'bg-red-50 border-red-100'}`}>
+                      <p className="text-sm font-semibold uppercase tracking-wider mb-2 opacity-80">True Trust Score</p>
+                      <div className="text-6xl font-serif font-bold">{trustScore}</div>
+                      <p className="text-sm mt-3 opacity-90 font-medium">
+                        Risk Level: <span className="uppercase">{verificationReport.risk_level?.replace('_', ' ') || 'UNKNOWN'}</span>
+                      </p>
+                    </div>
+
+                    <div className="p-6 bg-cream-200 rounded-xl border border-charcoal-100 flex flex-col justify-center">
+                      <p className="text-sm font-semibold text-charcoal-700 mb-2">Compliance Summary</p>
+                      <p className="text-sm text-charcoal-600 leading-relaxed">
+                        {verificationReport.verification_summary || 'No summary provided.'}
+                      </p>
+                      {verificationReport.recommendation && (
+                        <div className="mt-4 pt-4 border-t border-charcoal-200/50 flex justify-between items-center text-sm">
+                          <span className="font-semibold text-charcoal-700">Recommendation:</span>
+                          <Badge className="uppercase tracking-wide">{verificationReport.recommendation.replace('_', ' ')}</Badge>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="p-6 bg-cream-200 rounded-xl border border-charcoal-100 flex flex-col justify-center">
-                    <p className="text-sm font-semibold text-charcoal-700 mb-2">Compliance Summary</p>
-                    <p className="text-sm text-charcoal-600 leading-relaxed">
-                      {verificationReport.verification_summary || 'No summary provided.'}
-                    </p>
-                    {verificationReport.recommendation && (
-                      <div className="mt-4 pt-4 border-t border-charcoal-200/50 flex justify-between items-center text-sm">
-                        <span className="font-semibold text-charcoal-700">Recommendation:</span>
-                        <Badge className="uppercase tracking-wide">{verificationReport.recommendation.replace('_', ' ')}</Badge>
+                  {verificationReport.red_flags?.length > 0 && (
+                    <div>
+                      <p className="text-sm font-bold text-red-600 mb-3 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                        Crucial Red Flags Discovered
+                      </p>
+                      <div className="space-y-2">
+                        {verificationReport.red_flags.map((flag: string, i: number) => (
+                          <div key={i} className="p-3 bg-red-50 text-red-800 text-sm rounded-lg border border-red-100">
+                            {flag}
+                          </div>
+                        ))}
                       </div>
-                    )}
-                  </div>
-                </div>
+                    </div>
+                  )}
 
-                {verificationReport.red_flags?.length > 0 && (
-                  <div>
-                    <p className="text-sm font-bold text-red-600 mb-3 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                      Crucial Red Flags Discovered
-                    </p>
+                  {verificationReport.key_findings?.length > 0 && (
+                    <div>
+                      <p className="text-sm font-bold text-charcoal-700 mb-3">Key Evidence Findings</p>
+                      <ul className="space-y-2">
+                        {verificationReport.key_findings.map((finding: string, i: number) => (
+                          <li key={i} className="text-sm text-charcoal-600 flex items-start gap-2 bg-cream/50 p-2 rounded">
+                            <span className="text-sky mt-1">▸</span>{finding}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                </CardContent>
+              )}
+            </Card>
+          )}
+
+          {/* ── DigiLocker + ABC Government Verification ─────────────────── */}
+          {!verifying && auditVisible && showAudit && verificationReport?.government_verification && (() => {
+            const gov = verificationReport.government_verification;
+            const dl = gov.digilocker;
+            const abc = gov.abc;
+            const docIcon: Record<string, string> = {
+              AADHAR: '🪪', PAN: '💳', DEGREE: '🎓', MARKSHEET_12: '📋', MARKSHEET_10: '📋',
+            };
+            const statusColor = (s: string) =>
+              s === 'verified' ? 'bg-lime/20 text-green-800 border-lime/40'
+                : s === 'pending' ? 'bg-orange/20 text-orange-800 border-orange/40'
+                  : 'bg-red-50 text-red-800 border-red-200';
+            return (
+              <>
+                <Card className="flat-card border-2 border-sky/30">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <span className="text-xl">🏛️</span>
+                        DigiLocker Verification
+                        <Badge className={`ml-2 text-xs ${dl.status === 'fully_verified' ? 'bg-lime/20 text-green-800 border-lime/40' : 'bg-orange/20 text-orange-800'}`}>
+                          {dl.status === 'fully_verified' ? '✓ Fully Verified' : '⚡ Partially Verified'}
+                        </Badge>
+                      </CardTitle>
+                      <Badge variant="outline" className="text-xs text-charcoal-400 font-mono">MOCK · Integration Ready</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm mb-2">
+                      <div className="p-3 rounded-lg bg-cream-200 border border-charcoal-100">
+                        <p className="text-xs text-charcoal-500 font-medium">Aadhaar Linked</p>
+                        <p className="font-semibold text-charcoal-800 mt-1">{dl.aadhaar_linked ? '✓ Yes' : '✗ No'}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-cream-200 border border-charcoal-100">
+                        <p className="text-xs text-charcoal-500 font-medium">Docs Verified</p>
+                        <p className="font-semibold text-charcoal-800 mt-1">{dl.verified_documents}/{dl.total_documents}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-cream-200 border border-charcoal-100">
+                        <p className="text-xs text-charcoal-500 font-medium">Overall Status</p>
+                        <p className={`font-semibold mt-1 capitalize ${dl.status === 'fully_verified' ? 'text-green-700' : 'text-orange-600'}`}>
+                          {dl.status.replace('_', ' ')}
+                        </p>
+                      </div>
+                    </div>
                     <div className="space-y-2">
-                      {verificationReport.red_flags.map((flag: string, i: number) => (
-                        <div key={i} className="p-3 bg-red-50 text-red-800 text-sm rounded-lg border border-red-100">
-                          {flag}
+                      {dl.documents?.map((doc: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-charcoal-100 bg-white/60">
+                          <div className="flex items-center gap-3">
+                            <span className="text-lg">{docIcon[doc.doc_type] || '📄'}</span>
+                            <div>
+                              <p className="font-medium text-charcoal-800 text-sm">{doc.name}</p>
+                              <p className="text-xs text-charcoal-500">
+                                {doc.issuer}{doc.year ? ` · ${doc.year}` : ''}{doc.cgpa ? ` · CGPA ${doc.cgpa}` : ''}{doc.percentage ? ` · ${doc.percentage}%` : ''}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs px-2 py-1 rounded-full border font-medium ${statusColor(doc.status)}`}>
+                              {doc.status === 'verified' ? '✓ Verified' : '⏳ Pending'}
+                            </span>
+                            {doc.verified_at && <span className="text-xs text-charcoal-400 font-mono hidden md:block">{doc.verified_at}</span>}
+                          </div>
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                    <p className="text-xs text-charcoal-400 italic pt-1">🔗 Production: {dl.api_endpoint} · {dl.note}</p>
+                  </CardContent>
+                </Card>
 
-                {verificationReport.key_findings?.length > 0 && (
-                  <div>
-                    <p className="text-sm font-bold text-charcoal-700 mb-3">Key Evidence Findings</p>
-                    <ul className="space-y-2">
-                      {verificationReport.key_findings.map((finding: string, i: number) => (
-                        <li key={i} className="text-sm text-charcoal-600 flex items-start gap-2 bg-cream/50 p-2 rounded">
-                          <span className="text-sky mt-1">▸</span>{finding}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-              </CardContent>
-            </Card>
-          )}
+                <Card className="flat-card border-2 border-lime/30">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2 text-base">
+                        <span className="text-xl">🎓</span>
+                        Academic Bank of Credits (ABC)
+                        <Badge className="ml-2 text-xs bg-lime/20 text-green-800 border-lime/40">✓ Verified</Badge>
+                      </CardTitle>
+                      <Badge variant="outline" className="text-xs text-charcoal-400 font-mono">MOCK · Integration Ready</Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                      <div className="p-3 rounded-lg bg-cream-200 border border-charcoal-100">
+                        <p className="text-xs text-charcoal-500 font-medium">ABC ID</p>
+                        <p className="font-mono font-semibold text-charcoal-800 mt-1 text-xs">{abc.abc_id}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-cream-200 border border-charcoal-100">
+                        <p className="text-xs text-charcoal-500 font-medium">Credits Earned</p>
+                        <p className="font-bold text-charcoal-800 mt-1">{abc.total_credits_earned} / {abc.credits_required}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-cream-200 border border-charcoal-100">
+                        <p className="text-xs text-charcoal-500 font-medium">SGPA</p>
+                        <p className="font-bold text-charcoal-800 mt-1">{abc.sgpa} / 10</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-cream-200 border border-charcoal-100">
+                        <p className="text-xs text-charcoal-500 font-medium">Completion</p>
+                        <p className={`font-bold mt-1 ${abc.completion_percentage >= 80 ? 'text-green-700' : 'text-orange-600'}`}>{abc.completion_percentage}%</p>
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-charcoal-700 mb-2">Credited Courses</p>
+                      <div className="max-h-48 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                        {abc.courses?.map((c: any, i: number) => (
+                          <div key={i} className="flex items-center justify-between text-xs p-2 rounded border border-charcoal-100 bg-white/60 hover:bg-cream-100 transition-colors">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-charcoal-400 w-14 shrink-0">{c.course_code}</span>
+                              <span className="text-charcoal-700">{c.course_name}</span>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0">
+                              <span className="text-charcoal-400 hidden md:block">{c.semester}</span>
+                              <span className={`font-bold w-6 text-center ${c.grade === 'A+' ? 'text-green-700' : c.grade === 'A' ? 'text-green-600' : c.grade === 'B+' ? 'text-sky-600' : 'text-charcoal-600'}`}>{c.grade}</span>
+                              <span className="text-charcoal-400 w-12 text-right">{c.credits} cr</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-xs text-charcoal-400 italic">🔗 Production: {abc.api_endpoint} · {abc.note}</p>
+                  </CardContent>
+                </Card>
+              </>
+            );
+          })()}
 
           {showProfile && (
             <>

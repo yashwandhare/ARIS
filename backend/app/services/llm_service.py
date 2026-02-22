@@ -13,7 +13,7 @@ import httpx
 
 
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", "https://api.groq.com/openai/v1")
-LLM_MODEL = os.getenv("LLM_MODEL", "llama3-70b-8192")
+LLM_MODEL = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
 
 
 def _get_api_key():

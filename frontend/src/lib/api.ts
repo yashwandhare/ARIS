@@ -1,8 +1,18 @@
-let envUrl = import.meta.env.VITE_API_URL || "https://aris-backend-f6qm.onrender.com";
-if (envUrl && !envUrl.startsWith("http")) {
-  envUrl = "https://" + envUrl;
+const _rawUrl = import.meta.env.VITE_API_URL as string | undefined;
+
+function resolveBaseUrl(raw: string | undefined): string {
+  const fallback = "https://aris-backend-f6qm.onrender.com";
+  if (!raw) return fallback;
+  const trimmed = raw.replace(/\/+$/, ""); // strip trailing slashes
+  // If it looks like just a short service name (no dots, no protocol) — use fallback
+  if (!trimmed.includes(".") && !trimmed.startsWith("http")) return fallback;
+  // Add https:// if protocol is missing
+  if (!trimmed.startsWith("http")) return "https://" + trimmed;
+  return trimmed;
 }
-const BASE_URL = envUrl;
+
+const BASE_URL = resolveBaseUrl(_rawUrl);
+
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {

@@ -36,10 +36,7 @@ services:
     staticPublishPath: dist
     envVars:
       - key: VITE_API_URL
-        fromService:
-          name: aris-backend
-          type: web
-          property: host          # auto-wired to backend URL
+        value: https://aris-backend-f6qm.onrender.com   # hardcoded — fromService.host strips protocol
     headers:
       - path: /*
         name: Cache-Control

@@ -379,6 +379,16 @@ def modify_plan(application_id: int, payload: ModifyPlanRequest, db: Session = D
     return db_obj
 
 
+@router.delete("/{application_id}", status_code=204)
+def delete_application(application_id: int, db: Session = Depends(get_db)):
+    db_obj = db.query(Application).filter(Application.id == application_id).first()
+    if not db_obj:
+        raise HTTPException(status_code=404, detail="Application not found")
+    db.delete(db_obj)
+    db.commit()
+    return None
+
+
 @router.patch("/{application_id}/status", response_model=ApplicationResponse)
 def update_status(
     application_id: int,

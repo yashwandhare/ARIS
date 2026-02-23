@@ -1,5 +1,3 @@
-## Team Kaizen (team no 45) : yash wandhare, yash nimje, khushi neware, anshuman patil, vedant chamat
-
 # ARIS — Agentic Background Verification & Enterprise Hiring System
 
 ARIS is an autonomous candidate verification and recruitment platform built for the TechAlfa Hackathon. It leverages **Multi-Agent Agentic AI** to automate the most laborious parts of the hiring process: background verification, technical audit, and onboarding roadmap generation.
